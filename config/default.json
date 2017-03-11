@@ -3,5 +3,5 @@
   "server" : "http://127.0.0.1",
   "port": 1234,
   "token": "token",
-  "maxClient": 10
+  "maxClient": 1
 }

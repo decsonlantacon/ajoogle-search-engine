@@ -28,9 +28,9 @@ function start() {
     let engine = require('./engines/scrapers')
 
     // mock some services on local
-    // if (env === 'development') {
-    //     engine = require('./mocks/engine')
-    // }
+    if (env === 'development') {
+        engine = require('./mocks/engine')
+    }
 
     const app = express()
 
@@ -55,7 +55,7 @@ function start() {
 
         let queryProcessor = new QueryProcessor(engine, sender_id, q, query_id, max)
 
-            .done(function() {
+            queryProcessor.done(function() {
 
                 clientCount = clientCount - 1
 

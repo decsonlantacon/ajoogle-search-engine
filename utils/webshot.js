@@ -8,7 +8,7 @@ const path = require('path')
 
 const shotSize = {
     width: 1024,
-    height: 768 * 2.5
+    height: 1024 * (3 / 2) // aspec ratio 3:2
 }
 
 const viewportSize = {
@@ -33,10 +33,11 @@ function preparePhantom(done, errCb) {
             return instance.createPage()
         })
         .then(page => {
+            sitepage = page
             done(phInstance, page)
         })
         .catch(function(err) {
-            errCb(err, phInstance, page)
+            errCb(err, phInstance, sitepage)
         })
 }
 
@@ -47,9 +48,8 @@ function processUrl(url, filePrefix, includeImages, doneCb) {
 
     preparePhantom(function(phInstance, page) {
 
-        function grabScreen(dimension) {
+        function grabScreen(dims) {
 
-            var dims = JSON.parse(dimension)
             var numH = Math.floor(dims.height / shotSize.height)
 
             shot(0)
@@ -73,6 +73,7 @@ function processUrl(url, filePrefix, includeImages, doneCb) {
                                 console.log(`File saved ${fileName}`)
                                 image_urls.push(`${SERVER_URL}/${path.basename(fileName)}`)
                                 if (numH > 0 ? index === numH - 1 : index === numH) {
+                                    // done take webshots
                                     if (includeImages) {
                                         // retrive image urls as well
                                         setTimeout(function() {
@@ -103,26 +104,28 @@ function processUrl(url, filePrefix, includeImages, doneCb) {
                                                     phInstance.exit()
                                                 })
                                         }, delay)
-                                    } else {
-                                        image_urls = image_urls.concat(urls)
-                                        doneCb(null, image_urls)
-                                        phInstance.exit()
+                                        return
                                     }
 
+                                    image_urls = image_urls.concat(urls)
+                                    doneCb(null, image_urls)
+                                    phInstance.exit()
                                     return
+
                                 }
                                 shot(index + 1)
                             })
                             .catch(function() {
-                                if (numH > 0 ? index === numH - 1 : index === numH) {
-                                    doneCb(null, image_urls)
-                                    phInstance.exit()
-                                    return
-                                }
-                                shot(index + 1)
+                                doneCb(null, image_urls)
+                                phInstance.exit()
                             })
                     })
-            }
+                    .catch(function() {
+                        doneCb(null, image_urls)
+                        phInstance.exit()
+                    })
+
+            } // end shot()
 
         }
 
@@ -137,12 +140,17 @@ function processUrl(url, filePrefix, includeImages, doneCb) {
                         .then(() => {
 
                             page.evaluate(function() {
-                                    // set default background to white
-                                    var style = document.createElement('style');
-                                    var text = document.createTextNode('body { background: #fff }');
-                                    style.setAttribute('type', 'text/css');
-                                    style.appendChild(text);
-                                    document.head.insertBefore(style, document.head.firstChild);
+                                    if (document) {
+                                        if (document.head) {
+                                            // set default background to white
+                                            var style = document.createElement('style');
+                                            var text = document.createTextNode('body { background: #fff }');
+                                            style.setAttribute('type', 'text/css');
+                                            style.appendChild(text);
+
+                                            document.head.insertBefore(style, document.head.firstChild);
+                                        }
+                                    }
 
                                     return JSON.stringify({
                                         width: Math.max(
@@ -162,6 +170,8 @@ function processUrl(url, filePrefix, includeImages, doneCb) {
                                     })
                                 })
                                 .then((dimension) => {
+
+                                    dimension = JSON.parse(dimension)
 
                                     page.setting('javascriptEnabled', javascriptEnabled)
                                         .then(function() {
@@ -186,6 +196,7 @@ function processUrl(url, filePrefix, includeImages, doneCb) {
 
             })
             .catch(function(err) {
+                phInstance.exit()
                 doneCb(err)
             })
 
